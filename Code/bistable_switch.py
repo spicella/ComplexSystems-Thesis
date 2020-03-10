@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[56]:
 
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
 import pandas as pd #easier to operate with, numpy based..!
 from ipywidgets import interact
 import timeit
@@ -29,14 +30,17 @@ else:
     print ("Successfully created the directory %s " % results_dir)
 
 
-# In[3]:
+# In[ ]:
 
 
-def convert_to_df(mat):
+def convert_to_df(mat): 
+    #dataframes were used as they allowed computational times almost
+    #as fast as numpy but with easier syntax/more useful built in functions 
+    #for the present algorithm
     return pd.DataFrame(mat)
+
 def makeGaussian(size = 100, fwhm = 50, center=None):
     """ Make a square gaussian kernel 2d."""
-
     x = np.arange(0, size, 1, float)
     y = x[:,np.newaxis]
 
@@ -50,6 +54,9 @@ def makeGaussian(size = 100, fwhm = 50, center=None):
 
 def get_distrib_mat(grid):
     """Here only one step is needed in a given direction"""
+    """but this can be easily be changed and n-steps in whatever direction"""
+    """Given a grid (of PDF), returns values of the grid (n) steps in a given"""
+    """direction of the grid."""
     df_grid = convert_to_df(grid)
     N = df_grid.shift(1,axis=0,fill_value=0)  #looks 1 cell up
     E = df_grid.shift(-1,axis=1,fill_value=0) #looks 1 cell right
@@ -57,6 +64,11 @@ def get_distrib_mat(grid):
     W = df_grid.shift(1,axis=1,fill_value=0)  #looks 1 cell left 
     return N,E,S,W
 
+
+#Coefficients propensity functions, from
+#"Solution of the chemical master equation by
+#radial basis functions approximation with
+#interface tracking", Kryven et al
 
 c1=c4 = 3e3
 c2=c5 = 1.1e4
@@ -75,9 +87,9 @@ def r4(i,j):
     return c6*j
 
 #mapping reaction functions
-#note that these coefficients are fixed during the exp, can be evaluated even just once!
+#Note that these coefficients are fixed during the exp, can be evaluated even just once!
 
-#all weights for the reactions
+#all weights for the reactions, here just examples to picture dynamics of time evolution
 size = 100
 a = np.zeros(shape=[4,size,size])
 
@@ -116,14 +128,14 @@ for i in range(0,4):
     #plt.clim(0, .5);
 
 
-# In[6]:
+# In[146]:
 
 
 def create_size_folderdata(size):
     try:
         os.mkdir(output_dir+"/size=%d"%(size))
     except OSError:
-        print ("Creation of the directory %s failed" % output_dir+"/size=%d"%(size))
+        print ("")
     else:
         print ("Successfully created the directory %s " % output_dir+"/size=%d"%(size))
     return output_dir+"/size=%d"%(size)
@@ -131,10 +143,12 @@ def create_size_folderdata(size):
 #create_name/get data functions
 
 def name_data(t_end):
+    """Create name of output file given simulation parameters"""
     data_name = "data_size%d_x0y0=%d_%d_std=%d_t_end=%d.dat"%(size,center[0],center[1],std,t_end)
     return data_name
 
 def get_data(output_path,t_end):
+    """Get output file given simulation parameters"""
     data_name = "data_size%d_x0y0=%d_%d_std=%d_t=%d.dat"%(size,center[0],center[1],std,t_end)
     data = pd.read_csv(output_path,header=None,sep=",")
     return data
@@ -144,10 +158,10 @@ def get_data(output_path,t_end):
 
 
 def display_sequence_contourf(output_path,t_end):
+    """Slider implementation of visualization over time"""
     data = get_data(output_path,t_end)
     def _show(frame=(0, t_end-1)):
         plt.style.use('seaborn-white')
-
         plt.title("%d step"%(frame),y=1.1)
         plt.contourf(get_configuration(data, frame),10,cmap='Spectral') # n equally spaced lines
         plt.colorbar()
@@ -156,13 +170,16 @@ def display_sequence_contourf(output_path,t_end):
     return interact(_show)
 
 def get_configuration(data, t):
+    """Get configuration from data at a given time"""
     return convert_to_df(np.asarray(data.iloc[t]).reshape(size,size))
 
 
-# In[7]:
+# In[172]:
 
 
-def time_ev_mat(grid,t_end=50):
+def time_ev_mat(grid,t_end=500):
+    """Main of the simulation, returns path and name of the output file"""
+
 
     start_t = time.clock()
     t = 0  
@@ -203,7 +220,7 @@ def time_ev_mat(grid,t_end=50):
             print("Normalized sum of grid %.8f"%(sum(sum(grid.values))/(size*size)))
             print("Elapsed time = %.3fseconds\n"%(time.clock()-start_t))    
             #not to lose first step
-        
+        #here configurations are saved as 1D arrays, one per each time step
         (convert_to_df(grid.values.flatten()).T).to_csv(result_path_name+"/"+name_data(t_end),header=None,index=None,sep=",",float_format='%f',mode='a')
 
         #working directly on matrices to avoid nested for loops with plenty fo evaluations
@@ -227,7 +244,10 @@ def time_ev_mat(grid,t_end=50):
         t+=1
 
     end_t = time.clock()
-    print("\n\nDone in %.3fseconds"%(end_t-start_t))    
+    print("\n\nDone in %.3fseconds"%(end_t-start_t))  
+    file = open(result_path_name+"/"+"Stats.txt","w") 
+ 
+    file.write("Done in %.3fseconds"%(end_t-start_t)) 
     
     return result_path_name+"/"+name_data(t_end)
 
@@ -238,19 +258,22 @@ def time_ev_mat(grid,t_end=50):
 
 
 
-# In[ ]:
+# In[34]:
 
 
-size = 3
-std = size/5
-center = [size/2,size/2]
-
+#shift order to simulate test or paper configuration
 size = 300
 std = 266/2
 center = [133,133]
 
+size = 100
+std = size/5
+center = [size/8,size/2]
 
-t_end = 5000
+
+
+
+t_end = 100
 
 grid = convert_to_df(makeGaussian(size=size,center=center, fwhm = std))
 plt.matshow(grid)
@@ -259,32 +282,48 @@ plt.show()
 output_path = time_ev_mat(grid,t_end=t_end) #execute and returns path of data output 
 
 
-# In[12]:
+# In[35]:
 
 
-display_sequence_contourf(output_path,t_end)
+#display_sequence_contourf(output_path,t_end)
 
 
-# In[ ]:
+# In[110]:
 
 
+data = get_data(output_path,t_end)
 
 
-
-# In[ ]:
-
+# In[171]:
 
 
+fig, axes = plt.subplots(nrows=1, ncols=4,figsize=(20,5))
+ncolors = 15
+cmap ="jet"
+fig.suptitle("Configurations for %d x %d grid, $(x_{0},y_{0})=(%d,%d)$, $\\sigma=%d, t_{end}=%d$"%(size,size,center[0],center[1],std,t_end),fontsize=20,y=1.)
 
+im0 = axes[0].contourf(get_configuration(data, 1),ncolors,cmap=cmap) # n equally spaced lines
+im1 = axes[1].contourf(get_configuration(data, int(t_end/2)),ncolors,cmap=cmap) # n equally spaced lines
+im2 = axes[2].contourf(get_configuration(data, int(t_end*3/4)),ncolors,cmap=cmap) # n equally spaced lines
+im3 = axes[3].contourf(get_configuration(data, int(t_end)),ncolors,cmap=cmap) # n equally spaced lines
 
-# In[ ]:
+#titles
 
+axes[0].set_title('T = 0',fontsize=16)
+axes[1].set_title('T = $\\frac{%d}{%d}\,\,t_{end}$'%(1,2),fontsize=16)
+axes[2].set_title('T = $\\frac{%d}{%d}\,\,t_{end}$'%(3,4),fontsize=16)
+axes[3].set_title('T = $t_{end}$',fontsize=16)
 
+#labels
+axes[0].set_ylabel("B species",fontsize=16)
+axes[0].set_ylabel("B species",fontsize=16)
+axes[0].set_xlabel("A species",fontsize=16)
+axes[1].set_xlabel("A species",fontsize=16)
+axes[2].set_xlabel("A species",fontsize=16)
+axes[3].set_xlabel("A species",fontsize=16)
 
-
-
-# In[ ]:
-
-
-
-
+fig.subplots_adjust(right=0.8,top=.85)
+cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+fig.colorbar(im0, cax=cbar_ax)
+plt.savefig(create_size_folderdata(size)+"/"+"t_end=%d.png"%(t_end))
+plt.show()
