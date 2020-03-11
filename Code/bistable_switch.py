@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[56]:
+# In[1]:
 
 
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 import pandas as pd #easier to operate with, numpy based..!
 from ipywidgets import interact
 import timeit
@@ -30,7 +32,7 @@ else:
     print ("Successfully created the directory %s " % results_dir)
 
 
-# In[ ]:
+# In[30]:
 
 
 def convert_to_df(mat): 
@@ -90,7 +92,7 @@ def r4(i,j):
 #Note that these coefficients are fixed during the exp, can be evaluated even just once!
 
 #all weights for the reactions, here just examples to picture dynamics of time evolution
-size = 100
+size = 5
 a = np.zeros(shape=[4,size,size])
 
 for i in range(0,size):
@@ -107,7 +109,43 @@ a_df.append(convert_to_df(a[2,:,:]))
 a_df.append(convert_to_df(a[3,:,:]))
 
 
-# In[4]:
+# In[35]:
+
+
+#of each propensity grid, NESW
+#e.g.: a0 looking to the element in N position = a0_df[0]
+a0_df = get_distrib_mat(a_df[0])
+a1_df = get_distrib_mat(a_df[1])
+a2_df = get_distrib_mat(a_df[2])
+a3_df = get_distrib_mat(a_df[3])
+
+
+# In[36]:
+
+
+#test!
+grid = makeGaussian(size=5,center=[1,3],fwhm=2)
+plt.matshow(grid)
+shifted_distrib = get_distrib_mat(grid)
+N = shifted_distrib[0]
+E = shifted_distrib[1]
+S = shifted_distrib[2]
+W = shifted_distrib[3]
+
+
+# In[52]:
+
+
+a0_df[3]*W-a_df[0]*grid
+
+
+# In[55]:
+
+
+a2_df[0]*N
+
+
+# In[32]:
 
 
 plt.matshow(a_df[0]+a_df[1]+a_df[2]+a_df[3])
@@ -116,7 +154,7 @@ plt.colorbar()
 plt.show()
 
 
-# In[5]:
+# In[31]:
 
 
 #Coefficients matrices
@@ -128,7 +166,7 @@ for i in range(0,4):
     #plt.clim(0, .5);
 
 
-# In[146]:
+# In[7]:
 
 
 def create_size_folderdata(size):
@@ -169,17 +207,16 @@ def display_sequence_contourf(output_path,t_end):
         plt.show()
     return interact(_show)
 
-def get_configuration(data, t):
+def get_configuration(data):
     """Get configuration from data at a given time"""
-    return convert_to_df(np.asarray(data.iloc[t]).reshape(size,size))
+    return convert_to_df(np.asarray(data).reshape(size,size))
 
 
-# In[172]:
+# In[67]:
 
 
-def time_ev_mat(grid,t_end=500):
+def time_ev_mat(grid,t_end=500,dt=.1):
     """Main of the simulation, returns path and name of the output file"""
-
 
     start_t = time.clock()
     t = 0  
@@ -212,17 +249,30 @@ def time_ev_mat(grid,t_end=500):
     a_df.append(convert_to_df(a[2,:,:]))
     a_df.append(convert_to_df(a[3,:,:]))
     
-    t_flag=5
-    while t<t_end+1: #not to lose last step
+    #of each propensity grid, NESW
+    #e.g.: a0 looking to the element in N position = a0_df[0]
+    a0_df = get_distrib_mat(a_df[0])
+    a1_df = get_distrib_mat(a_df[1])
+    a2_df = get_distrib_mat(a_df[2])
+    a3_df = get_distrib_mat(a_df[3])
+
+    
+    t_flag=40
+    tgrid_saved = []
+    t_save_every = t_end/(dt*100) #save only n configurations
+    saved_counter = 0
+    while t<int(t_end/dt): #not to lose last step
         #running flag
-        if(t%int(t_end/t_flag))==0:
-            print("Process @%d/%d (%.2f/100)"%(t,t_end,(100*(t)/t_end)))
+        if(t%int(t_end/(t_flag*dt)))==0:
+            print("Process @%d/%d (%.2f/100)"%(t,t_end/dt,(100*(t*dt)/t_end)))
             print("Normalized sum of grid %.8f"%(sum(sum(grid.values))/(size*size)))
             print("Elapsed time = %.3fseconds\n"%(time.clock()-start_t))    
             #not to lose first step
         #here configurations are saved as 1D arrays, one per each time step
-        (convert_to_df(grid.values.flatten()).T).to_csv(result_path_name+"/"+name_data(t_end),header=None,index=None,sep=",",float_format='%f',mode='a')
-
+        if(t%t_save_every)==0:
+            (convert_to_df(grid.values.flatten()).T).to_csv(result_path_name+"/"+name_data(t_end),header=None,index=None,sep=",",float_format='%f',mode='a')
+            saved_counter+= 1
+            tgrid_saved.append((convert_to_df(grid.values.flatten()).T))
         #working directly on matrices to avoid nested for loops with plenty fo evaluations
         
         shifted_distrib = get_distrib_mat(grid)
@@ -230,12 +280,16 @@ def time_ev_mat(grid,t_end=500):
         E = shifted_distrib[1]
         S = shifted_distrib[2]
         W = shifted_distrib[3]
-        
+                
+        #evaluate increment
         increment = np.zeros(shape=[size,size])
-        increment = increment + (W-grid).values*grid.values*a_df[0].values
-        increment = increment + (E-grid).values*grid.values*a_df[1].values
-        increment = increment + (N-grid).values*grid.values*a_df[2].values
-        increment = increment + (S-grid).values*grid.values*a_df[3].values
+
+        
+        increment += a0_df[3]*W-a_df[0]*grid
+        increment += a1_df[1]*W-a_df[1]*grid
+        increment += a2_df[0]*N-a_df[2]*grid
+        increment += a3_df[2]*S-a_df[3]*grid
+        increment *= dt
         
         #implement mask for thresholds
         
@@ -245,11 +299,112 @@ def time_ev_mat(grid,t_end=500):
 
     end_t = time.clock()
     print("\n\nDone in %.3fseconds"%(end_t-start_t))  
-    file = open(result_path_name+"/"+"Stats.txt","w") 
- 
+    file = open(result_path_name+"/"+"Stats_size=%d_center=(%d_%d)_std=%d_t_end=%d.txt"%(size,center[0],center[1],std,t_end),"w") 
     file.write("Done in %.3fseconds"%(end_t-start_t)) 
+     
+    print("Now some live plots")
+
+    fig, axes = plt.subplots(nrows=1, ncols=4,figsize=(20,5))
+    ncolors = 15
+    cmap ="jet"
+    fig.suptitle("Configurations for %d x %d grid, $(x_{0},y_{0})=(%d,%d)$, $\\sigma=%d, t_{end}=%d$"%(size,size,center[0],center[1],std,t_end),fontsize=20,y=1.)
+
+    im0 = axes[0].contourf(get_configuration(tgrid_saved[0]),ncolors,cmap=cmap) # n equally spaced lines
+    divider = make_axes_locatable(axes[0])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im0, cax=cax, orientation='vertical')
+
     
-    return result_path_name+"/"+name_data(t_end)
+    im1 = axes[1].contourf(get_configuration(tgrid_saved[int(saved_counter/2)]),ncolors,cmap=cmap) # n equally spaced lines
+    divider = make_axes_locatable(axes[1])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im1, cax=cax, orientation='vertical')
+
+    im2 = axes[2].contourf(get_configuration(tgrid_saved[int(saved_counter*3/4)]),ncolors,cmap=cmap) # n equally spaced lines
+    divider = make_axes_locatable(axes[2])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im2, cax=cax, orientation='vertical')
+
+    im3 = axes[3].contourf(get_configuration(tgrid_saved[int(saved_counter-1)]),ncolors,cmap=cmap) # n equally spaced lines
+    divider = make_axes_locatable(axes[3])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im3, cax=cax, orientation='vertical')
+    #titles
+
+    axes[0].set_title('T = 0',fontsize=16)
+    axes[1].set_title('T = $\\frac{%d}{%d}\,\,t_{end}$'%(1,2),fontsize=16)
+    axes[2].set_title('T = $\\frac{%d}{%d}\,\,t_{end}$'%(3,4),fontsize=16)
+    axes[3].set_title('T = $t_{end}$',fontsize=16)
+
+    #labels
+    axes[0].set_ylabel("B species",fontsize=16)
+    axes[0].set_ylabel("B species",fontsize=16)
+    axes[0].set_xlabel("A species",fontsize=16)
+    axes[1].set_xlabel("A species",fontsize=16)
+    axes[2].set_xlabel("A species",fontsize=16)
+    axes[3].set_xlabel("A species",fontsize=16)
+
+    fig.subplots_adjust(wspace=.4,top=.85)
+    plt.savefig(create_size_folderdata(size)+"/"+"plot_configs_size=%d_center=(%d_%d)_std=%dt_end=%d.png"%(size,center[0],center[1],std,t_end))
+    plt.show()
+    
+    
+    
+    return result_path_name+"/"+name_data(t_end), saved_counter
+
+
+# In[ ]:
+
+
+#shift order to simulate test or paper configuration
+
+size = 300
+std = 266/4
+center = [133,133]
+
+
+size = 100
+std = size/5
+center = [size/8,size/3]
+
+
+
+dt = .1
+t_end = 10000
+
+grid = convert_to_df(makeGaussian(size=size,center=center, fwhm = std))
+plt.matshow(grid)
+plt.title("Initial Configuration",y=1.1)
+plt.show()
+output_path = time_ev_mat(grid,t_end=t_end,dt=dt) #execute and returns path of data output 
+
+
+# In[65]:
+
+
+def display_sequence_contourf_out(output_path,t_end):
+    """Slider implementation of visualization over time"""
+    data = get_data(output_path[0],t_end)
+    def _show(frame=(0, t_end-1)):
+        plt.style.use('seaborn-white')
+        plt.title("%d step"%(frame*100*dt),y=1.1)#n = save every
+        plt.contourf(get_configuration_out(data,frame),10,cmap='Spectral') # n equally spaced lines
+        plt.colorbar()
+        #plt.clim(0,1)
+        plt.show()
+    return interact(_show)
+
+def get_configuration_out(data,t):
+    """Get configuration from data at a given time"""
+    return convert_to_df(np.asarray(data.iloc[t]).reshape(size,size))
+
+
+# In[66]:
+
+
+#data = get_data(output_path[0],t_end)
+#plt.contourf(get_configuration_out(data,2),10,cmap='Spectral') # n equally spaced lines
+display_sequence_contourf_out(output_path,output_path[1])
 
 
 # In[ ]:
@@ -258,72 +413,96 @@ def time_ev_mat(grid,t_end=500):
 
 
 
-# In[34]:
-
-
-#shift order to simulate test or paper configuration
-size = 300
-std = 266/2
-center = [133,133]
-
-size = 100
-std = size/5
-center = [size/8,size/2]
+# In[52]:
 
 
 
 
-t_end = 100
 
-grid = convert_to_df(makeGaussian(size=size,center=center, fwhm = std))
-plt.matshow(grid)
-plt.title("Initial Configuration",y=1.1)
-plt.show()
-output_path = time_ev_mat(grid,t_end=t_end) #execute and returns path of data output 
+# In[53]:
 
 
-# In[35]:
 
 
-#display_sequence_contourf(output_path,t_end)
+
+# In[73]:
 
 
-# In[110]:
+# data = get_data(output_path[0],output_path[1])
 
 
-data = get_data(output_path,t_end)
+# # In[53]:
 
 
-# In[171]:
+# def get_configuration_out(data,t):
+#     """Get configuration from data at a given time"""
+#     return convert_to_df(np.asarray(data.iloc[t]).reshape(size,size))
 
 
-fig, axes = plt.subplots(nrows=1, ncols=4,figsize=(20,5))
-ncolors = 15
-cmap ="jet"
-fig.suptitle("Configurations for %d x %d grid, $(x_{0},y_{0})=(%d,%d)$, $\\sigma=%d, t_{end}=%d$"%(size,size,center[0],center[1],std,t_end),fontsize=20,y=1.)
+# # In[73]:
 
-im0 = axes[0].contourf(get_configuration(data, 1),ncolors,cmap=cmap) # n equally spaced lines
-im1 = axes[1].contourf(get_configuration(data, int(t_end/2)),ncolors,cmap=cmap) # n equally spaced lines
-im2 = axes[2].contourf(get_configuration(data, int(t_end*3/4)),ncolors,cmap=cmap) # n equally spaced lines
-im3 = axes[3].contourf(get_configuration(data, int(t_end)),ncolors,cmap=cmap) # n equally spaced lines
 
-#titles
+# fig, axes = plt.subplots(nrows=1, ncols=4,figsize=(20,5))
+# ncolors = 15
+# cmap ="jet"
+# fig.suptitle("Configurations for %d x %d grid, $(x_{0},y_{0})=(%d,%d)$, $\\sigma=%d, t_{end}=%d$"%(size,size,center[0],center[1],std,t_end),fontsize=20,y=1.)
 
-axes[0].set_title('T = 0',fontsize=16)
-axes[1].set_title('T = $\\frac{%d}{%d}\,\,t_{end}$'%(1,2),fontsize=16)
-axes[2].set_title('T = $\\frac{%d}{%d}\,\,t_{end}$'%(3,4),fontsize=16)
-axes[3].set_title('T = $t_{end}$',fontsize=16)
+# im0 = axes[0].contourf(get_configuration_out(data, 0),ncolors,cmap=cmap) # n equally spaced lines
+# divider = make_axes_locatable(axes[0])
+# cax = divider.append_axes('right', size='5%', pad=0.05)
+# fig.colorbar(im0, cax=cax, orientation='vertical')
 
-#labels
-axes[0].set_ylabel("B species",fontsize=16)
-axes[0].set_ylabel("B species",fontsize=16)
-axes[0].set_xlabel("A species",fontsize=16)
-axes[1].set_xlabel("A species",fontsize=16)
-axes[2].set_xlabel("A species",fontsize=16)
-axes[3].set_xlabel("A species",fontsize=16)
+# im1 = axes[1].contourf(get_configuration_out(data, int(output_path[1]/2)),ncolors,cmap=cmap) # n equally spaced lines
+# divider = make_axes_locatable(axes[1])
+# cax = divider.append_axes('right', size='5%', pad=0.05)
+# fig.colorbar(im1, cax=cax, orientation='vertical')
 
-fig.subplots_adjust(right=0.8,top=.85)
-cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-fig.colorbar(im0, cax=cbar_ax)
-plt.savefig(create_size_folderdata(size)+"/"+"t_end=%d.png"%(t_end))
-plt.show()
+# im2 = axes[2].contourf(get_configuration_out(data, int(output_path[1]*3/4)),ncolors,cmap=cmap) # n equally spaced lines
+# divider = make_axes_locatable(axes[2])
+# cax = divider.append_axes('right', size='5%', pad=0.05)
+# fig.colorbar(im2, cax=cax, orientation='vertical')
+
+
+# im3 = axes[3].contourf(get_configuration_out(data, int(output_path[1]-1)),ncolors,cmap=cmap) # n equally spaced lines
+# divider = make_axes_locatable(axes[3])
+# cax = divider.append_axes('right', size='5%', pad=0.05)
+# fig.colorbar(im3, cax=cax, orientation='vertical')
+
+# #titles
+
+# axes[0].set_title('T = 0',fontsize=16)
+# axes[1].set_title('T = $\\frac{%d}{%d}\,\,t_{end}$'%(1,2),fontsize=16)
+# axes[2].set_title('T = $\\frac{%d}{%d}\,\,t_{end}$'%(3,4),fontsize=16)
+# axes[3].set_title('T = $t_{end}$',fontsize=16)
+
+# #labels
+# axes[0].set_ylabel("B species",fontsize=16)
+# axes[0].set_ylabel("B species",fontsize=16)
+# axes[0].set_xlabel("A species",fontsize=16)
+# axes[1].set_xlabel("A species",fontsize=16)
+# axes[2].set_xlabel("A species",fontsize=16)
+# axes[3].set_xlabel("A species",fontsize=16)
+
+# fig.subplots_adjust(wspace=.4,top=.85)
+
+# plt.savefig(create_size_folderdata(size)+"/"+"t_end=%d.png"%(t_end))
+# plt.show()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
