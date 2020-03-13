@@ -4,10 +4,9 @@ using Plots
 ############ 2D, not optimized and a bit too much flexible  ############
 
 function distrib_0(position,state_vec_0,stdev)#,still 2d to implement in multidim
-    #f:R^d->R
     exponent=0.
     for i in 1:2
-    exponent+= (position[i]-state_vec_0[i])^2
+        exponent+= (position[i]-state_vec_0[i])^2
     end
     return exp(-exponent/stdev)
 end
@@ -36,8 +35,8 @@ end
 
 function initial_grid(size,initial_cond,std)
     grid = zeros(size[1],size[2])
-    for i in 1:size[2]
-        for j in 1:size[1]
+    for i in 1:size[1]
+        for j in 1:size[2]
             grid[i,j] = distrib_0([i,j],[initial_cond[1],initial_cond[2]],std)
         end
     end
@@ -45,10 +44,6 @@ function initial_grid(size,initial_cond,std)
 end
 
 grid_size = 100
-
-grid_run = initial_grid([grid_size,grid_size],[trunc(Int, grid_size/3),trunc(Int, grid_size/8)],grid_size)
-heatmap(grid_run, c = :viridis)
-#sum(grid_run)
 
 #Can be optimized with only one tensor, but so far is still okay
 a1 = zeros(grid_size,grid_size,5) #1=itself; 2,3,4,5=N,S,E,W
@@ -104,34 +99,34 @@ for i in 1:grid_size
         a4[grid_size,j,4] = 0 # S
         a4[i,j,5] = reaction_weight(4)(i,j-1)
         a4[i,1,5] = 0 # W
-
     end
 end
 
 #Plot propensities
-
 heatmap(a1[:,:,1], c = :viridis)
 heatmap(a2[:,:,1], c = :viridis)
 heatmap(a3[:,:,1], c = :viridis)
 heatmap(a4[:,:,1], c = :viridis)
 
+#Plot sum of propensities
 heatmap(a1[:,:,1] + a2[:,:,1] + a3[:,:,1] + a4[:,:,1], c = :viridis)
 
-grid_run = initial_grid([grid_size,grid_size],[trunc(Int, grid_size/3),trunc(Int, grid_size/8)],grid_size)
+sizes = [grid_size,grid_size]
+std = grid_size/4
 
 @time begin
-    let grid_run = initial_grid([grid_size,grid_size],[trunc(Int, grid_size/2),trunc(Int, grid_size/2)],grid_size/4)
-        grid_run = initial_grid([grid_size,grid_size],[trunc(Int, grid_size/2),trunc(Int, grid_size/2)],grid_size/4)
+    let grid_run = initial_grid(sizes,[trunc(Int, grid_size/2),trunc(Int, grid_size/2)],grid_size/4)
         grid0 = grid_run
         # Start of time loop
+        print("\n\n\n\nStarting now!")
         t = 0
-        t_end = 100
+        t_end = 10000
         dt = .001
         Plots.display(heatmap(grid_run,title=string(dt*t)))
 
         while t<t_end/dt
         t+=1
-        if t % trunc(Int,(t_end/dt)/20)==0
+        if t % trunc(Int,(t_end/dt)/5000)==0
            print("Process @ ",t,"/",t_end/dt,". Effective t = ",dt*t,"\n")
            print("Total prob = ",sum(grid_run),"\n\n")
            Plots.display(heatmap(grid_run,title=string(dt*t)))
@@ -165,16 +160,12 @@ grid_run = initial_grid([grid_size,grid_size],[trunc(Int, grid_size/3),trunc(Int
             end
         end
 
-        # "in grid cell" terms
-
         increment = zeros(grid_size,grid_size)
         increment += dt*(   a1[:,:,5].*grid_W - a1[:,:,1].*grid_run +
                             a2[:,:,3].*grid_E - a2[:,:,1].*grid_run +
                             a3[:,:,2].*grid_N - a3[:,:,1].*grid_run +
                             a4[:,:,4].*grid_S - a4[:,:,1].*grid_run    )
-
         grid_run+=increment
-
         end
     end
 end
