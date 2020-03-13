@@ -13,7 +13,11 @@ function distrib_0(position,state_vec_0,stdev)#,still 2d to implement in multidi
 end
 
 function reaction_weight(reaction_index)
-    c1,c2,c3,c4,c5,c6,β,γ=3000,11000,-.001,3000,11000,-.001,2,2 #from paper
+    c1=c4 = 3e3
+    c2=c5 = 1.1e4
+    c3=c6 = 1e-3
+    β = γ = 2
+
     if reaction_index==1
         newfunction = function (x,y) return c1/(c2+(y^β)) end
     end
@@ -40,7 +44,7 @@ function initial_grid(size,initial_cond,std)
     return grid
 end
 
-grid_size = 50
+grid_size = 100
 
 grid_run = initial_grid([grid_size,grid_size],[trunc(Int, grid_size/3),trunc(Int, grid_size/8)],grid_size)
 heatmap(grid_run, c = :viridis)
@@ -111,25 +115,29 @@ heatmap(a2[:,:,1], c = :viridis)
 heatmap(a3[:,:,1], c = :viridis)
 heatmap(a4[:,:,1], c = :viridis)
 
+heatmap(a1[:,:,1] + a2[:,:,1] + a3[:,:,1] + a4[:,:,1], c = :viridis)
 
+grid_run = initial_grid([grid_size,grid_size],[trunc(Int, grid_size/3),trunc(Int, grid_size/8)],grid_size)
 
-#evaluate shifted grid, always NESW syntax
 @time begin
-    let grid_run = initial_grid([grid_size,grid_size],[trunc(Int, grid_size/3),trunc(Int, grid_size/8)],grid_size)
+    let grid_run = initial_grid([grid_size,grid_size],[trunc(Int, grid_size/2),trunc(Int, grid_size/2)],grid_size/4)
+        grid_run = initial_grid([grid_size,grid_size],[trunc(Int, grid_size/2),trunc(Int, grid_size/2)],grid_size/4)
         grid0 = grid_run
-        ##########start time loop
+        # Start of time loop
         t = 0
-        t_end = 10
-        dt = .0001
+        t_end = 100
+        dt = .001
+        Plots.display(heatmap(grid_run,title=string(dt*t)))
 
         while t<t_end/dt
         t+=1
-        if t % trunc(Int,(t_end/dt)/100)==0
-            print("Process @ ",t,"/",t_end/dt,"\n")
-            print("Total prob = ",sum(grid_run),"\n\n")
-            Plots.display(heatmap(grid_run))
+        if t % trunc(Int,(t_end/dt)/20)==0
+           print("Process @ ",t,"/",t_end/dt,". Effective t = ",dt*t,"\n")
+           print("Total prob = ",sum(grid_run),"\n\n")
+           Plots.display(heatmap(grid_run,title=string(dt*t)))
         end
 
+        #evaluate shifted grid, always NESW syntax
         grid_N = zeros(grid_size,grid_size)
         grid_E = zeros(grid_size,grid_size)
         grid_S = zeros(grid_size,grid_size)
@@ -158,16 +166,12 @@ heatmap(a4[:,:,1], c = :viridis)
         end
 
         # "in grid cell" terms
-        grid_times_a1 = a1[:,:,1]*grid_run
-        grid_times_a2 = a2[:,:,1]*grid_run
-        grid_times_a3 = a3[:,:,1]*grid_run
-        grid_times_a4 = a4[:,:,1]*grid_run
 
         increment = zeros(grid_size,grid_size)
-        increment += dt*(a1[:,:,5]*grid_W - grid_times_a1+
-                        a2[:,:,3]*grid_E - grid_times_a2+
-                        a3[:,:,2]*grid_N - grid_times_a3+
-                        a4[:,:,4]*grid_S - grid_times_a4)
+        increment += dt*(   a1[:,:,5].*grid_W - a1[:,:,1].*grid_run +
+                            a2[:,:,3].*grid_E - a2[:,:,1].*grid_run +
+                            a3[:,:,2].*grid_N - a3[:,:,1].*grid_run +
+                            a4[:,:,4].*grid_S - a4[:,:,1].*grid_run    )
 
         grid_run+=increment
 
