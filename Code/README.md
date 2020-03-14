@@ -7,3 +7,5 @@ Notes:
 ![alt text](https://github.com/spicella/ComplexSystems-Thesis/blob/master/Code/images/200.png)
 ![alt text](https://github.com/spicella/ComplexSystems-Thesis/blob/master/Code/images/300.png)
 ![alt text](https://github.com/spicella/ComplexSystems-Thesis/blob/master/Code/images/1000.png)
+
+  - When specifying types in jl there is something wrong/missing as the PDF drifts and diverges..
