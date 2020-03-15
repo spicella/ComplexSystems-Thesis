@@ -540,3 +540,16 @@ y = np.full(shape=[3,3],fill_value=-3.3,dtype="float32")
 from scipy.linalg import get_blas_funcs
 gemm = get_blas_funcs("gemm", [x, y])
 gemm(3, y, x) 
+
+
+# In[118]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
