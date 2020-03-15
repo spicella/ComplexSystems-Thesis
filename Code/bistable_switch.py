@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[86]:
+# In[16]:
 
 
 import numpy as np
@@ -9,7 +9,8 @@ import scipy
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
+from scipy.stats import multivariate_normal
+from sklearn.preprocessing import  minmax_scale
 import pandas as pd #easier to operate with, numpy based..!
 from ipywidgets import interact
 import timeit
@@ -17,7 +18,7 @@ import time
 import os
 
 
-# In[2]:
+# In[4]:
 
 
 #Folder and paths definitions
@@ -33,7 +34,7 @@ else:
     print ("Successfully created the directory %s " % results_dir)
 
 
-# In[74]:
+# In[5]:
 
 
 def convert_to_df(mat,dtype="float32"): 
@@ -41,19 +42,6 @@ def convert_to_df(mat,dtype="float32"):
     #as fast as numpy but with easier syntax/more useful built in functions 
     #for the present algorithm
     return pd.DataFrame(np.float32(mat))
-
-def makeGaussian(size = 100, fwhm = 50, center=None):
-    """ Make a square gaussian kernel 2d."""
-    x = np.arange(0, size, 1, float)
-    y = x[:,np.newaxis]
-
-    if center is None:
-        x0 = y0 = size // 2
-    else:
-        x0 = center[0]
-        y0 = center[1]
-
-    return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 
 def get_distrib_mat(grid):
     """Here only one step is needed in a given direction"""
@@ -110,7 +98,7 @@ a_df.append(convert_to_df(a[2,:,:]))
 a_df.append(convert_to_df(a[3,:,:]))
 
 
-# In[53]:
+# In[6]:
 
 
 #of each propensity grid, NESW
@@ -121,30 +109,10 @@ a2_df = get_distrib_mat(a_df[2])
 a3_df = get_distrib_mat(a_df[3])
 
 
-# In[55]:
+# In[7]:
 
 
 type(a0_df[1].iloc[0][0])
-
-
-# In[56]:
-
-
-#test!
-grid = makeGaussian(size=10,center=[1,3],fwhm=2)
-plt.matshow(grid)
-shifted_distrib = get_distrib_mat(grid)
-N = shifted_distrib[0]
-E = shifted_distrib[1]
-S = shifted_distrib[2]
-W = shifted_distrib[3]
-
-
-# In[57]:
-
-
-#correct, consider inverted axis on plot
-plt.matshow(S)
 
 
 # In[ ]:
@@ -153,7 +121,19 @@ plt.matshow(S)
 
 
 
-# In[13]:
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[9]:
 
 
 plt.matshow(a_df[0]+a_df[1]+a_df[2]+a_df[3])
@@ -162,7 +142,7 @@ plt.colorbar()
 plt.show()
 
 
-# In[61]:
+# In[10]:
 
 
 #Coefficients matrices
@@ -174,7 +154,7 @@ for i in range(0,4):
     #plt.clim(0, .5);
 
 
-# In[17]:
+# In[11]:
 
 
 def create_size_folderdata(size):
@@ -220,13 +200,7 @@ def get_configuration(data):
     return convert_to_df(np.asarray(data).reshape(size,size))
 
 
-# In[40]:
-
-
-
-
-
-# In[136]:
+# In[23]:
 
 
 def time_ev_mat(grid,t_end=500,dt=.1):
@@ -237,8 +211,8 @@ def time_ev_mat(grid,t_end=500,dt=.1):
     size = np.shape(grid)[0]
     dt_mat = np.full([size,size],fill_value=dt,dtype="float32")
 
+    #propensity matrix
     a = np.zeros(shape=[4,size,size],dtype="float32")
-    
     
     result_path_name = create_size_folderdata(size)
     
@@ -248,7 +222,9 @@ def time_ev_mat(grid,t_end=500,dt=.1):
     if os.path.exists(filePath):
         os.remove(filePath)
     
-    print("\n")
+    print("\n\n")
+    ncolors = 20
+    cmap ="jet"
     
     grid = convert_to_df(grid)
     for i in range(0,size):
@@ -263,7 +239,11 @@ def time_ev_mat(grid,t_end=500,dt=.1):
     a_df.append(convert_to_df(a[1,:,:]))
     a_df.append(convert_to_df(a[2,:,:]))
     a_df.append(convert_to_df(a[3,:,:]))
-    
+    plt.matshow(a_df[0]+a_df[1]+a_df[2]+a_df[3])
+    plt.title("Propensity weights",y=1.1)#coefficients from paper
+    plt.colorbar()
+    plt.savefig(create_size_folderdata(size)+"/"+"propensity_map.png")
+    plt.show()
     #of each propensity grid, NESW
     #e.g.: a0 looking to the element in N position = a0_df[0]
     a0_df = get_distrib_mat(a_df[0])
@@ -272,19 +252,21 @@ def time_ev_mat(grid,t_end=500,dt=.1):
     a3_df = get_distrib_mat(a_df[3])
     increment = np.zeros([size,size])
     tgrid_saved = []
-    t_save_every = t_end/(dt*50) #save only n configurations
+    t_save_every = t_end/(dt*100) #save only n configurations
     saved_counter = 0
     while t<int(t_end/dt): #not to lose last step
         #running flag
-        if(t%int(t_end/(10000*dt)))==0: #display every n
+        if(t%int(t_end/(500*dt)))==0: #display every n
             #print(type(grid.iloc[0][1]))
             print("Effective time = %.4f\n"%(dt*t))
             print("Process @%d/%d (%.2f/100)"%(t,t_end/dt,(100*(t*dt)/t_end)))
             print("Normalized sum of grid %.8f"%(sum(sum(grid.values))/(size*size)))
             print("Elapsed time = %.3fseconds\n"%(time.clock()-start_t))  
-            
-            plt.contourf(grid)
+            plt.figure(figsize=[8,8])
+            plt.title("$(x_{0},y_{0})$=(%d,%d), $\\sigma=%d$, t=%.3f, dt=%.3f"%(center[0],center[1],std,t*dt,dt),fontsize=20)
+            plt.contourf(grid,ncolors,cmap=cmap)
             plt.colorbar()
+            plt.savefig(create_size_folderdata(size)+"/"+"plot_configs_size=%d_center=(%d_%d)_std=%d_dt=%.5f_t=%.3f.png"%(size,center[0],center[1],std,dt,t*dt))
             plt.show()
             #not to lose first step
         #here configurations are saved as 1D arrays, one per each time step
@@ -302,11 +284,11 @@ def time_ev_mat(grid,t_end=500,dt=.1):
                 
         #evaluate increment
         increment = np.zeros(shape=[size,size],dtype="float32")
+        
         incr1 = np.subtract(np.multiply(a0_df[3],W),np.multiply(a_df[0],grid))
         incr2 = np.subtract(np.multiply(a1_df[1],E),np.multiply(a_df[1],grid))
         incr3 = np.subtract(np.multiply(a2_df[0],N),np.multiply(a_df[2],grid))
         incr4 = np.subtract(np.multiply(a3_df[2],S),np.multiply(a_df[3],grid))
-        
         
         increment = np.add(increment, incr1)
         increment = np.add(increment, incr2)
@@ -315,9 +297,9 @@ def time_ev_mat(grid,t_end=500,dt=.1):
         
         increment = np.multiply(increment,dt_mat)
         
-        #implement mask for thresholds
-        
-        
+        #mask for thresholds
+        grid[grid < 1e-10] = 0
+
         grid = np.add(grid,increment)
         t+=1
 
@@ -387,30 +369,36 @@ def time_ev_mat(grid,t_end=500,dt=.1):
 
 
 #shift order to simulate test or paper configuration
-
-
-size = 30
-std = size/5
-center = [size/8,size/3]
+size = 200
+std = size*.886/3
+center = [size*.443,size*.443] #to have the same ratio from the paper
 
 size = 300
-std = 266/4
+std = 266
 center = [133,133]
 
+dt = .001
+t_end = 50000
+
+x, y = np.mgrid[0:size:1, 0:size:1]
+pos = np.empty(x.shape + (2,))
+pos[:, :, 0] = x; pos[:, :, 1] = y
+rv = multivariate_normal(center, [[std,0], [0, std]])
+grid = np.float32(np.multiply(np.full([size,size],1),rv.pdf(pos)))
+
+grid= grid/np.max(grid) #normalize
+grid[grid < 1e-10] = 0  #threshold
 
 
-
-dt = .005
-t_end = 400000
-
-grid = convert_to_df(makeGaussian(size=size,center=center, fwhm = std))
+grid = convert_to_df(grid)
 plt.matshow(grid)
 plt.title("Initial Configuration",y=1.1)
 plt.show()
-output_path = time_ev_mat(grid,t_end=t_end,dt=dt) #execute and returns path of data output 
+#execute and returns path of data output 
+output_path = time_ev_mat(grid,t_end=t_end,dt=dt) 
 
 
-# In[ ]:
+# In[146]:
 
 
 def display_sequence_contourf_out(output_path,t_end):
@@ -431,7 +419,7 @@ def get_configuration_out(data,t):
     return convert_to_df(np.asarray(data.iloc[t]).reshape(size,size))
 
 
-# In[ ]:
+# In[147]:
 
 
 #data = get_data(output_path[0],t_end)
