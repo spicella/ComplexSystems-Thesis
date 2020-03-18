@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[2]:
 
 
 import numpy as np
@@ -18,7 +18,7 @@ import time
 import os
 
 
-# In[4]:
+# In[3]:
 
 
 #Folder and paths definitions
@@ -34,7 +34,7 @@ else:
     print ("Successfully created the directory %s " % results_dir)
 
 
-# In[5]:
+# In[4]:
 
 
 def convert_to_df(mat,dtype="float32"): 
@@ -44,6 +44,7 @@ def convert_to_df(mat,dtype="float32"):
     return pd.DataFrame(np.float32(mat))
 
 def get_distrib_mat(grid):
+    # This is the only true parallelizable process
     """Here only one step is needed in a given direction"""
     """but this can be easily be changed and n-steps in whatever direction"""
     """Given a grid (of PDF), returns values of the grid (n) steps in a given"""
@@ -53,7 +54,7 @@ def get_distrib_mat(grid):
     E = df_grid.shift(-1,axis=1,fill_value=0) #looks 1 cell right
     S = df_grid.shift(1,axis=0,fill_value=0) #looks 1 cell down 
     W = df_grid.shift(1,axis=1,fill_value=0)  #looks 1 cell left 
-    return N,E,S,W
+    return np.float32(N),np.float32(E),np.float32(S),np.float32(W)
 
 
 #Coefficients propensity functions, from
@@ -98,7 +99,7 @@ a_df.append(convert_to_df(a[2,:,:]))
 a_df.append(convert_to_df(a[3,:,:]))
 
 
-# In[6]:
+# In[7]:
 
 
 #of each propensity grid, NESW
@@ -109,12 +110,6 @@ a2_df = get_distrib_mat(a_df[2])
 a3_df = get_distrib_mat(a_df[3])
 
 
-# In[7]:
-
-
-type(a0_df[1].iloc[0][0])
-
-
 # In[ ]:
 
 
@@ -127,13 +122,7 @@ type(a0_df[1].iloc[0][0])
 
 
 
-# In[ ]:
-
-
-
-
-
-# In[9]:
+# In[8]:
 
 
 plt.matshow(a_df[0]+a_df[1]+a_df[2]+a_df[3])
@@ -142,7 +131,7 @@ plt.colorbar()
 plt.show()
 
 
-# In[10]:
+# In[9]:
 
 
 #Coefficients matrices
@@ -154,7 +143,7 @@ for i in range(0,4):
     #plt.clim(0, .5);
 
 
-# In[11]:
+# In[10]:
 
 
 def create_size_folderdata(size):
@@ -252,11 +241,25 @@ def time_ev_mat(grid,t_end=500,dt=.1):
     a3_df = get_distrib_mat(a_df[3])
     increment = np.zeros([size,size])
     tgrid_saved = []
-    t_save_every = t_end/(dt*100) #save only n configurations
+    t_save_every = t_end/(dt*50) #save only n configurations
     saved_counter = 0
+    increment = np.zeros(shape=[size,size],dtype="float32")
+
+    #convert to np objects all propensity matrices in order to seriously (\sim20)
+    a0W = np.float32(a0_df[3])
+    a1E = np.float32(a1_df[1])
+    a2N = np.float32(a2_df[0])
+    a3S = np.float32(a3_df[2])
+    
+    a0_inplace = np.float32(a_df[0])
+    a1_inplace = np.float32(a_df[1])
+    a2_inplace = np.float32(a_df[2])
+    a3_inplace = np.float32(a_df[3])
+    
+    
     while t<int(t_end/dt): #not to lose last step
         #running flag
-        if(t%int(t_end/(500*dt)))==0: #display every n
+        if(t%int(t_end/(2000*dt)))==0: #display every n
             #print(type(grid.iloc[0][1]))
             print("Effective time = %.4f\n"%(dt*t))
             print("Process @%d/%d (%.2f/100)"%(t,t_end/dt,(100*(t*dt)/t_end)))
@@ -276,29 +279,35 @@ def time_ev_mat(grid,t_end=500,dt=.1):
             tgrid_saved.append((convert_to_df(grid.values.flatten()).T))
         #working directly on matrices to avoid nested for loops with plenty fo evaluations
         
+        #slowest part of the code:==>checked, not that slow at all..!
+        #faster than multithread apparently
+        ###--------from here--------###
         shifted_distrib = get_distrib_mat(grid)
         N = shifted_distrib[0]
         E = shifted_distrib[1]
         S = shifted_distrib[2]
         W = shifted_distrib[3]
-                
-        #evaluate increment
-        increment = np.zeros(shape=[size,size],dtype="float32")
+        ###---------to here---------###
         
-        incr1 = np.subtract(np.multiply(a0_df[3],W),np.multiply(a_df[0],grid))
-        incr2 = np.subtract(np.multiply(a1_df[1],E),np.multiply(a_df[1],grid))
-        incr3 = np.subtract(np.multiply(a2_df[0],N),np.multiply(a_df[2],grid))
-        incr4 = np.subtract(np.multiply(a3_df[2],S),np.multiply(a_df[3],grid))
+        #evaluate increment==>already "optimized with built in numpy"
         
+        incr1 = np.subtract(np.multiply(a0W,W),np.multiply(a0_inplace,grid))
+        incr2 = np.subtract(np.multiply(a1E,E),np.multiply(a1_inplace,grid))
+        incr3 = np.subtract(np.multiply(a2N,N),np.multiply(a2_inplace,grid))
+        incr4 = np.subtract(np.multiply(a3S,S),np.multiply(a3_inplace,grid))
+        
+        #set increment to 0
+        increment = np.subtract(increment,increment)
+        #add increments
         increment = np.add(increment, incr1)
         increment = np.add(increment, incr2)
         increment = np.add(increment, incr3)
         increment = np.add(increment, incr4)
-        
+        #scale by dt
         increment = np.multiply(increment,dt_mat)
         
         #mask for thresholds
-        grid[grid < 1e-10] = 0
+        #grid[grid < 1e-10] = 0
 
         grid = np.add(grid,increment)
         t+=1
@@ -365,20 +374,31 @@ def time_ev_mat(grid,t_end=500,dt=.1):
 
 
 
-# In[ ]:
+# In[24]:
 
 
 #shift order to simulate test or paper configuration
-size = 200
-std = size*.886/3
-center = [size*.443,size*.443] #to have the same ratio from the paper
+#to have the same ratio from the paper
 
 size = 300
 std = 266
 center = [133,133]
 
+
+
+
+size = 300
+std = 400
+center = [size/4,.75*size]
+
+
+
+size = 300
+std = size*.886/3
+center = [size*.443,size*.443] 
+
 dt = .001
-t_end = 50000
+t_end = int(5e2)
 
 x, y = np.mgrid[0:size:1, 0:size:1]
 pos = np.empty(x.shape + (2,))
