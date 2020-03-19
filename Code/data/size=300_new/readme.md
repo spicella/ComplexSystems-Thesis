@@ -1,5 +1,3 @@
-**Gifs are still to be composed, images have been obtained already**
-
 Final configurations obtained, same parameters as the ones in the "Bistable toggle switch" case
   - Center in (133,133):
   
