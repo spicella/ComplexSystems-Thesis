@@ -7,6 +7,6 @@ Notes:
 ![alt text](https://github.com/spicella/ComplexSystems-Thesis/blob/master/Code/images/200.png)
 ![alt text](https://github.com/spicella/ComplexSystems-Thesis/blob/master/Code/images/300.png)
 ![alt text](https://github.com/spicella/ComplexSystems-Thesis/blob/master/Code/images/1000.png)
-
-  - *Python* : "With great hotness comes great responsibility."
-  - *JULIA* When specifying types there is something wrong/missing as the PDF drifts and diverges..
+  ...this is why, when simulating with smaller grid, parameters must be scaled accordingly
+  - *Python* : "With great modules comes great responsibility."
+  - *JULIA* re-structure the code in the *Julia* way..
