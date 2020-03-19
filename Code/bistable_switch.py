@@ -50,9 +50,9 @@ def get_distrib_mat(grid):
     """Given a grid (of PDF), returns values of the grid (n) steps in a given"""
     """direction of the grid."""
     df_grid = convert_to_df(grid)
-    N = df_grid.shift(-1,axis=0,fill_value=0)  #looks 1 cell up
+    N = df_grid.shift(1,axis=0,fill_value=0)  #looks 1 cell up
     E = df_grid.shift(-1,axis=1,fill_value=0) #looks 1 cell right
-    S = df_grid.shift(1,axis=0,fill_value=0) #looks 1 cell down 
+    S = df_grid.shift(-1,axis=0,fill_value=0) #looks 1 cell down 
     W = df_grid.shift(1,axis=1,fill_value=0)  #looks 1 cell left 
     return np.float32(N),np.float32(E),np.float32(S),np.float32(W)
 
@@ -248,8 +248,8 @@ def time_ev_mat(grid,t_end=500,dt=.1):
     #convert to np objects all propensity matrices in order to seriously (\sim20)
     a0W = np.float32(a0_df[3])
     a1E = np.float32(a1_df[1])
-    a2N = np.float32(a2_df[0])
-    a3S = np.float32(a3_df[2])
+    a2S = np.float32(a2_df[2])
+    a3N = np.float32(a3_df[0])
     
     a0_inplace = np.float32(a_df[0])
     a1_inplace = np.float32(a_df[1])
@@ -293,8 +293,8 @@ def time_ev_mat(grid,t_end=500,dt=.1):
         
         incr1 = np.subtract(np.multiply(a0W,W),np.multiply(a0_inplace,grid))
         incr2 = np.subtract(np.multiply(a1E,E),np.multiply(a1_inplace,grid))
-        incr3 = np.subtract(np.multiply(a2N,N),np.multiply(a2_inplace,grid))
-        incr4 = np.subtract(np.multiply(a3S,S),np.multiply(a3_inplace,grid))
+        incr3 = np.subtract(np.multiply(a2S,S),np.multiply(a2_inplace,grid))
+        incr4 = np.subtract(np.multiply(a3N,N),np.multiply(a3_inplace,grid))
         
         #set increment to 0
         increment = np.subtract(increment,increment)
