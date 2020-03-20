@@ -17,7 +17,7 @@
   - Julia version of the code is meant to replicate results from .py but in a way faster way.
   - Folders with results data/outputs will automatically created/updated when running the codes [PY].
 - Results: 
-  - Will be presented withi each folder for the correspondent simulation parameters.
+  - Will be presented within each folder for the correspondent simulation parameters.
 
   
 #### Ideas:
