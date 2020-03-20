@@ -1,4 +1,6 @@
-Final configurations obtained, same parameters as the ones in the "Bistable toggle switch" case
+The “*normalized sum*” term is just the sum of u(x,y) all over the grid over the number of grid cells that I used to keep track of the drift in the total PDF over time.
+
+Final configurations obtained, same parameters as the ones in the "Bistable toggle switch" case.
   
   - Center in (133,133):
   
