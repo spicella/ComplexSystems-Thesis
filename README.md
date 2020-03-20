@@ -10,6 +10,8 @@
 ### Main steps
   Coming soon!
 #### How to use the repo: 
+- Bibliography:
+  - Collection of useful paper and references to take inspiration from, both directly linked to the topic and additional material regarding possible outlines
 - Code:
   - "bistable_switch" replicates Kryven et al. "Solution of the chemical master equation by radial basis functions approximation with interface tracking" for bistable switch case. Comments in the python codes are self explanatory. Note that no "for" loop was used to improve time performances.
   - Julia version of the code is meant to replicate results from .py but in a way faster way.
