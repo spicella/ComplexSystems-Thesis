@@ -177,7 +177,7 @@ def get_configuration(data):
     return convert_to_df(np.asarray(data).reshape(size,size))
 
 
-# In[40]:
+# In[55]:
 
 
 def increments(mat,th,a0W,a1E,a2S,a3N,a0_inplace,a1_inplace,a2_inplace,a3_inplace,dt_mat):
@@ -217,7 +217,7 @@ def increments(mat,th,a0W,a1E,a2S,a3N,a0_inplace,a1_inplace,a2_inplace,a3_inplac
     return np.add(increment,masked_grid)
 
 
-# In[50]:
+# In[59]:
 
 
 def time_ev_mat(grid,t_end=500,dt=.1,threshold=.0001):
@@ -294,10 +294,10 @@ def time_ev_mat(grid,t_end=500,dt=.1,threshold=.0001):
             print("Sum of grid %.8f"%(np.nansum(grid)))
             print("Elapsed time = %.3fseconds\n"%(time.clock()-start_t))  
             plt.figure(figsize=[8,8])
-            plt.title("$(x_{0},y_{0})$=(%d,%d), $\\sigma=%d$, t=%.3f, dt=%.3f\nSum = %.8f"%(center[0],center[1],std,t*dt,dt,np.nansum(matt)),fontsize=20)
+            plt.title("$(x_{0},y_{0})$=(%d,%d), $\\sigma=%d$, t=%.3f, dt=%.3f\np_th = %.4f, sum = %.8f"%(center[0],center[1],std,t*dt,dt,threshold,np.nansum(grid)),fontsize=20)
             plt.contourf(grid,ncolors,cmap=cmap)
             plt.colorbar()
-            plt.savefig(create_size_folderdata(size)+"/"+"plot_configs_size=%d_center=(%d_%d)_std=%d_dt=%.5f_t=%.3f.png"%(size,center[0],center[1],std,dt,t*dt))
+            plt.savefig(create_size_folderdata(size)+"/"+"plot_configs_size=%d_center=(%d_%d)_std=%d_dt=%.5f_pth=%.4f_t=%.3f.png"%(size,center[0],center[1],std,dt,threshold,t*dt))
             plt.show()
             #not to lose first step
         #here configurations are saved as 1D arrays, one per each time step
@@ -320,7 +320,7 @@ def time_ev_mat(grid,t_end=500,dt=.1,threshold=.0001):
     fig, axes = plt.subplots(nrows=1, ncols=4,figsize=(20,5))
     ncolors = 20
     cmap ="jet"
-    fig.suptitle("Configurations for %d x %d grid, $(x_{0},y_{0})=(%d,%d)$, $\\sigma=%d, t_{end}=%d$, dt=%.4f"%(size,size,center[0],center[1],std,t_end,dt),fontsize=20,y=1.)
+    fig.suptitle("Configurations for %d x %d grid, $(x_{0},y_{0})=(%d,%d)$, $\\sigma=%d, t_{end}=%d$, dt=%.4f, p_th = %.4f"%(size,size,center[0],center[1],std,t_end,dt,threshold),fontsize=20,y=1.)
 
     im0 = axes[0].contourf(get_configuration(tgrid_saved[0]),ncolors,cmap=cmap) # n equally spaced lines
     divider = make_axes_locatable(axes[0])
@@ -358,7 +358,7 @@ def time_ev_mat(grid,t_end=500,dt=.1,threshold=.0001):
     axes[3].set_xlabel("A species",fontsize=16)
 
     fig.subplots_adjust(wspace=.4,top=.85)
-    plt.savefig(create_size_folderdata(size)+"/"+"plot_configs_size=%d_center=(%d_%d)_std=%d_dt=%.5f_t_end=%d.png"%(size,center[0],center[1],std,dt,t_end))
+    plt.savefig(create_size_folderdata(size)+"/"+"plot_configs_size=%d_center=(%d_%d)_std=%d_dt=%.5f__th=%.4f_t_end=%d.png"%(size,center[0],center[1],std,dt,threshold,t_end))
     plt.show()
     
     
@@ -396,9 +396,9 @@ size = 300
 std = 266
 center = [133,133]
 
-dt = .005
+dt = .050
 t_end = int(1e5)
-threshold = .001
+threshold = .0001
 
 
 x, y = np.mgrid[0:size:1, 0:size:1]
