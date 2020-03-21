@@ -34,7 +34,7 @@ else:
     print ("Successfully created the directory %s " % results_dir)
 
 
-# In[3]:
+# In[7]:
 
 
 def convert_to_df(mat,dtype="float32"): 
@@ -99,7 +99,7 @@ a_df.append(convert_to_df(a[2,:,:]))
 a_df.append(convert_to_df(a[3,:,:]))
 
 
-# In[4]:
+# In[8]:
 
 
 #of each propensity grid, NESW
@@ -110,7 +110,7 @@ a2_df = get_distrib_mat(a_df[2])
 a3_df = get_distrib_mat(a_df[3])
 
 
-# In[5]:
+# In[9]:
 
 
 plt.matshow(a_df[0]+a_df[1]+a_df[2]+a_df[3])
@@ -119,7 +119,7 @@ plt.colorbar()
 plt.show()
 
 
-# In[6]:
+# In[10]:
 
 
 #Coefficients matrices
@@ -131,7 +131,7 @@ for i in range(0,4):
     #plt.clim(0, .5);
 
 
-# In[7]:
+# In[43]:
 
 
 def create_size_folderdata(size):
@@ -177,26 +177,27 @@ def get_configuration(data):
     return convert_to_df(np.asarray(data).reshape(size,size))
 
 
-# In[55]:
+# In[44]:
 
 
 def increments(mat,th,a0W,a1E,a2S,a3N,a0_inplace,a1_inplace,a2_inplace,a3_inplace,dt_mat):
-    """Create mask for non null value"""
+    """Create mask for non null value at max_grid*threshold"""
     """in place and in each NESW neigh"""
     """BEWARE: values are modified in place in the original matrix"""
     """Therefore: if th is reduced, false output!"""
-    
-    mat[mat<th]=0 #acts directly on pdf matrix itself!
+    th = np.max(mat) * th
+    copymat = mat.copy()
+    copymat[copymat<th]=0 #acts directly on pdf matrix itself!
     
     #makes sense as increments are evaluated starting from the masked pdf itself
-    matN,matE,matS,matW = get_distrib_mat(mat) #evaluate "compass" from original grid
+    matN,matE,matS,matW = get_distrib_mat(copymat) #evaluate "compass" from original grid
 
     #condition to check that a value and ALL its NESW neighs are ==0 given the threshold
-    h = np.add(mat,matN)
+    h = np.add(copymat,matN)
     h = np.add(h,matE)
     h = np.add(h,matS)
     h = np.add(h,matW)
-    masked_grid = np.where(trutru==(h!=0),mat,np.add(mat,zeros))
+    masked_grid = np.where(trutru==(h!=0),mat,np.add(copymat,zeros))
 
     #Evaluation of the increments
     incr1 = np.subtract(np.multiply(a0W,matW),np.multiply(a0_inplace,masked_grid))
@@ -217,10 +218,10 @@ def increments(mat,th,a0W,a1E,a2S,a3N,a0_inplace,a1_inplace,a2_inplace,a3_inplac
     return np.add(increment,masked_grid)
 
 
-# In[59]:
+# In[45]:
 
 
-def time_ev_mat(grid,t_end=500,dt=.1,threshold=.0001):
+def time_ev_mat(grid,t_end=500,dt=.1,threshold=.01):
     """Main of the simulation, returns path and name of the output file"""
 
     start_t = time.clock()
@@ -302,7 +303,7 @@ def time_ev_mat(grid,t_end=500,dt=.1,threshold=.0001):
             #not to lose first step
         #here configurations are saved as 1D arrays, one per each time step
         if(t%t_save_every)==0:
-            (convert_to_df(grid.values.flatten()).T).to_csv(result_path_name+"/"+name_data(t_end,dt),header=None,index=None,sep=",",float_format='%f',mode='a')
+            np.savetxt(result_path_name+"/"+name_data(t_end,dt), grid, header='',fmt='%.5e', delimiter=",")
             saved_counter+= 1
             tgrid_saved.append((convert_to_df(grid.values.flatten()).T))
         #working directly on matrices to avoid nested for loops with plenty fo evaluations
@@ -398,7 +399,7 @@ center = [133,133]
 
 dt = .050
 t_end = int(1e5)
-threshold = .0001
+threshold = .01
 
 
 x, y = np.mgrid[0:size:1, 0:size:1]
@@ -453,22 +454,22 @@ def get_configuration_out(data,t):
 display_sequence_contourf_out(output_path,output_path[1])
 
 
-# In[ ]:
+# In[36]:
 
 
 
 
 
-# In[ ]:
+# In[41]:
 
 
 
 
 
-# In[ ]:
+# In[42]:
 
 
-
+main_path
 
 
 # In[19]:
@@ -535,7 +536,7 @@ display_sequence_contourf_out(output_path,output_path[1])
 # plt.show()
 
 
-# In[79]:
+# In[21]:
 
 
 size=300
@@ -544,7 +545,7 @@ plt.matshow(matt)
 plt.colorbar()
 
 
-# In[36]:
+# In[27]:
 
 
 matt = np.random.random(size=[300,300])
@@ -560,28 +561,33 @@ a3_inplace = np.float32(a_df[3])
 dt_mat = np.full([size,size],fill_value=.1,dtype="float32")
 
 
-# In[37]:
+# In[13]:
 
 
+
+
+
+# In[28]:
 
 
 def increments(th,mat):
-    """Create mask for non null value"""
+    """Create mask for non null value at max_grid*threshold"""
     """in place and in each NESW neigh"""
     """BEWARE: values are modified in place in the original matrix"""
     """Therefore: if th is reduced, false output!"""
-    
-    mat[mat<th]=0 #acts directly on pdf matrix itself!
+    th = np.max(mat) * th
+    copymat = np.copy(mat)
+    copymat[copymat<th]=0 #acts directly on pdf matrix itself!
     
     #makes sense as increments are evaluated starting from the masked pdf itself
-    matN,matE,matS,matW = get_distrib_mat(mat) #evaluate "compass" from original grid
+    matN,matE,matS,matW = get_distrib_mat(copymat) #evaluate "compass" from original grid
 
     #condition to check that a value and ALL its NESW neighs are ==0 given the threshold
-    h = np.add(mat,matN)
+    h = np.add(copymat,matN)
     h = np.add(h,matE)
     h = np.add(h,matS)
     h = np.add(h,matW)
-    masked_grid = np.where(trutru==(h!=0),mat,np.add(mat,zeros))
+    masked_grid = np.where(trutru==(h!=0),mat,np.add(copymat,zeros))
 
     #Evaluation of the increments
     incr1 = np.subtract(np.multiply(a0W,matW),np.multiply(a0_inplace,masked_grid))
@@ -602,39 +608,13 @@ def increments(th,mat):
     return np.add(increment,masked_grid)
 
 
-# In[38]:
+# In[29]:
 
 
 for i in range(0,5):
-    matt = increments(.8,matt)
+    matt = increments(.01,matt)
     plt.matshow(matt)
     print(np.nansum(matt))
-
-
-# In[100]:
-
-
-a = increments(.03,matt)
-
-
-# In[101]:
-
-
-plt.matshow(a)
-print(sum(sum(a)))
-
-
-# In[102]:
-
-
-b = increments(.03,a)
-
-
-# In[103]:
-
-
-plt.matshow(b)
-print(sum(sum(b)))
 
 
 # In[ ]:
