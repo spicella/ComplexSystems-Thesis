@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import numpy as np
@@ -18,13 +18,13 @@ import time
 import os
 
 
-# In[3]:
+# In[2]:
 
 
 #Folder and paths definitions
 main_path  = os.getcwd()
 datafolder_path = main_path+"/results"
-results_dir = "/output_py" 
+results_dir = "/output_py_branch" 
 output_dir = main_path+results_dir
 try:
     os.mkdir(output_dir)
@@ -34,7 +34,7 @@ else:
     print ("Successfully created the directory %s " % results_dir)
 
 
-# In[4]:
+# In[3]:
 
 
 def convert_to_df(mat,dtype="float32"): 
@@ -99,7 +99,7 @@ a_df.append(convert_to_df(a[2,:,:]))
 a_df.append(convert_to_df(a[3,:,:]))
 
 
-# In[7]:
+# In[4]:
 
 
 #of each propensity grid, NESW
@@ -110,19 +110,7 @@ a2_df = get_distrib_mat(a_df[2])
 a3_df = get_distrib_mat(a_df[3])
 
 
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[8]:
+# In[5]:
 
 
 plt.matshow(a_df[0]+a_df[1]+a_df[2]+a_df[3])
@@ -131,7 +119,7 @@ plt.colorbar()
 plt.show()
 
 
-# In[9]:
+# In[6]:
 
 
 #Coefficients matrices
@@ -143,7 +131,7 @@ for i in range(0,4):
     #plt.clim(0, .5);
 
 
-# In[10]:
+# In[7]:
 
 
 def create_size_folderdata(size):
@@ -189,10 +177,50 @@ def get_configuration(data):
     return convert_to_df(np.asarray(data).reshape(size,size))
 
 
-# In[23]:
+# In[40]:
 
 
-def time_ev_mat(grid,t_end=500,dt=.1):
+def increments(mat,th,a0W,a1E,a2S,a3N,a0_inplace,a1_inplace,a2_inplace,a3_inplace,dt_mat):
+    """Create mask for non null value"""
+    """in place and in each NESW neigh"""
+    """BEWARE: values are modified in place in the original matrix"""
+    """Therefore: if th is reduced, false output!"""
+    
+    mat[mat<th]=0 #acts directly on pdf matrix itself!
+    
+    #makes sense as increments are evaluated starting from the masked pdf itself
+    matN,matE,matS,matW = get_distrib_mat(mat) #evaluate "compass" from original grid
+
+    #condition to check that a value and ALL its NESW neighs are ==0 given the threshold
+    h = np.add(mat,matN)
+    h = np.add(h,matE)
+    h = np.add(h,matS)
+    h = np.add(h,matW)
+    masked_grid = np.where(trutru==(h!=0),mat,np.add(mat,zeros))
+
+    #Evaluation of the increments
+    incr1 = np.subtract(np.multiply(a0W,matW),np.multiply(a0_inplace,masked_grid))
+    incr2 = np.subtract(np.multiply(a1E,matE),np.multiply(a1_inplace,masked_grid))
+    incr3 = np.subtract(np.multiply(a2S,matS),np.multiply(a2_inplace,masked_grid))
+    incr4 = np.subtract(np.multiply(a3N,matN),np.multiply(a3_inplace,masked_grid))
+    
+    #set increment to 0
+    increment = np.zeros(shape=[size,size],dtype="float32")
+    #add increments
+    increment = np.add(increment, incr1)
+    increment = np.add(increment, incr2)
+    increment = np.add(increment, incr3)
+    increment = np.add(increment, incr4)
+    #scale by dt
+    increment = np.multiply(increment,dt_mat)
+        
+    return np.add(increment,masked_grid)
+
+
+# In[50]:
+
+
+def time_ev_mat(grid,t_end=500,dt=.1,threshold=.0001):
     """Main of the simulation, returns path and name of the output file"""
 
     start_t = time.clock()
@@ -259,14 +287,14 @@ def time_ev_mat(grid,t_end=500,dt=.1):
     
     while t<int(t_end/dt): #not to lose last step
         #running flag
-        if(t%int(t_end/(2000*dt)))==0: #display every n
+        if(t%int(t_end/(1000*dt)))==0: #display and save n
             #print(type(grid.iloc[0][1]))
             print("Effective time = %.4f\n"%(dt*t))
             print("Process @%d/%d (%.2f/100)"%(t,t_end/dt,(100*(t*dt)/t_end)))
-            print("Normalized sum of grid %.8f"%(sum(sum(grid.values))/(size*size)))
+            print("Sum of grid %.8f"%(np.nansum(grid)))
             print("Elapsed time = %.3fseconds\n"%(time.clock()-start_t))  
             plt.figure(figsize=[8,8])
-            plt.title("$(x_{0},y_{0})$=(%d,%d), $\\sigma=%d$, t=%.3f, dt=%.3f"%(center[0],center[1],std,t*dt,dt),fontsize=20)
+            plt.title("$(x_{0},y_{0})$=(%d,%d), $\\sigma=%d$, t=%.3f, dt=%.3f\nSum = %.8f"%(center[0],center[1],std,t*dt,dt,np.nansum(matt)),fontsize=20)
             plt.contourf(grid,ncolors,cmap=cmap)
             plt.colorbar()
             plt.savefig(create_size_folderdata(size)+"/"+"plot_configs_size=%d_center=(%d_%d)_std=%d_dt=%.5f_t=%.3f.png"%(size,center[0],center[1],std,dt,t*dt))
@@ -278,38 +306,8 @@ def time_ev_mat(grid,t_end=500,dt=.1):
             saved_counter+= 1
             tgrid_saved.append((convert_to_df(grid.values.flatten()).T))
         #working directly on matrices to avoid nested for loops with plenty fo evaluations
-        
-        #slowest part of the code:==>checked, not that slow at all..!
-        #faster than multithread apparently
-        ###--------from here--------###
-        shifted_distrib = get_distrib_mat(grid)
-        N = shifted_distrib[0]
-        E = shifted_distrib[1]
-        S = shifted_distrib[2]
-        W = shifted_distrib[3]
-        ###---------to here---------###
-        
-        #evaluate increment==>already "optimized with built in numpy"
-        
-        incr1 = np.subtract(np.multiply(a0W,W),np.multiply(a0_inplace,grid))
-        incr2 = np.subtract(np.multiply(a1E,E),np.multiply(a1_inplace,grid))
-        incr3 = np.subtract(np.multiply(a2S,S),np.multiply(a2_inplace,grid))
-        incr4 = np.subtract(np.multiply(a3N,N),np.multiply(a3_inplace,grid))
-        
-        #set increment to 0
-        increment = np.subtract(increment,increment)
-        #add increments
-        increment = np.add(increment, incr1)
-        increment = np.add(increment, incr2)
-        increment = np.add(increment, incr3)
-        increment = np.add(increment, incr4)
-        #scale by dt
-        increment = np.multiply(increment,dt_mat)
-        
-        #mask for thresholds
-        #grid[grid < 1e-10] = 0
-
-        grid = np.add(grid,increment)
+        #all update now is in "increments"
+        grid = increments(grid,threshold,a0W,a1E,a2S,a3N,a0_inplace,a1_inplace,a2_inplace,a3_inplace,dt_mat)
         t+=1
 
     end_t = time.clock()
@@ -374,31 +372,34 @@ def time_ev_mat(grid,t_end=500,dt=.1):
 
 
 
-# In[24]:
+# In[ ]:
+
+
+#Useful for creating the masks for np operations
+trutru = np.full(shape=[size,size],fill_value=True) #cit.
+zeros = np.full(shape=[size,size],fill_value=0.)
 
 
 #shift order to simulate test or paper configuration
 #to have the same ratio from the paper
-
-size = 300
-std = 266
-center = [133,133]
-
-
 
 
 size = 300
 std = 400
 center = [size/4,.75*size]
 
-
-
 size = 300
 std = size*.886/3
 center = [size*.443,size*.443] 
 
-dt = .001
-t_end = int(5e2)
+size = 300
+std = 266
+center = [133,133]
+
+dt = .005
+t_end = int(1e5)
+threshold = .001
+
 
 x, y = np.mgrid[0:size:1, 0:size:1]
 pos = np.empty(x.shape + (2,))
@@ -406,8 +407,13 @@ pos[:, :, 0] = x; pos[:, :, 1] = y
 rv = multivariate_normal(center, [[std,0], [0, std]])
 grid = np.float32(np.multiply(np.full([size,size],1),rv.pdf(pos)))
 
+grid = np.float32(np.multiply(np.full([size,size],1),rv.pdf(pos)))
+
+
 grid= grid/np.max(grid) #normalize
 grid[grid < 1e-10] = 0  #threshold
+
+#test
 
 
 grid = convert_to_df(grid)
@@ -415,10 +421,10 @@ plt.matshow(grid)
 plt.title("Initial Configuration",y=1.1)
 plt.show()
 #execute and returns path of data output 
-output_path = time_ev_mat(grid,t_end=t_end,dt=dt) 
+output_path = time_ev_mat(grid,t_end=t_end,dt=dt,threshold=threshold) 
 
 
-# In[146]:
+# In[ ]:
 
 
 def display_sequence_contourf_out(output_path,t_end):
@@ -439,7 +445,7 @@ def get_configuration_out(data,t):
     return convert_to_df(np.asarray(data.iloc[t]).reshape(size,size))
 
 
-# In[147]:
+# In[19]:
 
 
 #data = get_data(output_path[0],t_end)
@@ -465,7 +471,7 @@ display_sequence_contourf_out(output_path,output_path[1])
 
 
 
-# In[ ]:
+# In[19]:
 
 
 # data = get_data(output_path[0],output_path[1])
@@ -529,31 +535,106 @@ display_sequence_contourf_out(output_path,output_path[1])
 # plt.show()
 
 
-# In[82]:
+# In[79]:
+
+
+size=300
+matt = np.float32(np.random.random(size=[size,size]))
+plt.matshow(matt)
+plt.colorbar()
+
+
+# In[36]:
+
+
+matt = np.random.random(size=[300,300])
+a0W = np.float32(a0_df[3])
+a1E = np.float32(a1_df[1])
+a2S = np.float32(a2_df[2])
+a3N = np.float32(a3_df[0])
+    
+a0_inplace = np.float32(a_df[0])
+a1_inplace = np.float32(a_df[1])
+a2_inplace = np.float32(a_df[2])
+a3_inplace = np.float32(a_df[3])
+dt_mat = np.full([size,size],fill_value=.1,dtype="float32")
+
+
+# In[37]:
 
 
 
 
+def increments(th,mat):
+    """Create mask for non null value"""
+    """in place and in each NESW neigh"""
+    """BEWARE: values are modified in place in the original matrix"""
+    """Therefore: if th is reduced, false output!"""
+    
+    mat[mat<th]=0 #acts directly on pdf matrix itself!
+    
+    #makes sense as increments are evaluated starting from the masked pdf itself
+    matN,matE,matS,matW = get_distrib_mat(mat) #evaluate "compass" from original grid
 
-# In[117]:
+    #condition to check that a value and ALL its NESW neighs are ==0 given the threshold
+    h = np.add(mat,matN)
+    h = np.add(h,matE)
+    h = np.add(h,matS)
+    h = np.add(h,matW)
+    masked_grid = np.where(trutru==(h!=0),mat,np.add(mat,zeros))
+
+    #Evaluation of the increments
+    incr1 = np.subtract(np.multiply(a0W,matW),np.multiply(a0_inplace,masked_grid))
+    incr2 = np.subtract(np.multiply(a1E,matE),np.multiply(a1_inplace,masked_grid))
+    incr3 = np.subtract(np.multiply(a2S,matS),np.multiply(a2_inplace,masked_grid))
+    incr4 = np.subtract(np.multiply(a3N,matN),np.multiply(a3_inplace,masked_grid))
+    
+    #set increment to 0
+    increment = np.zeros(shape=[size,size],dtype="float32")
+    #add increments
+    increment = np.add(increment, incr1)
+    increment = np.add(increment, incr2)
+    increment = np.add(increment, incr3)
+    increment = np.add(increment, incr4)
+    #scale by dt
+    increment = np.multiply(increment,dt_mat)
+        
+    return np.add(increment,masked_grid)
 
 
-x = np.full(shape=[3,3],fill_value=1.,dtype="float32")
-y = np.full(shape=[3,3],fill_value=-3.3,dtype="float32")
+# In[38]:
 
 
-# In[111]:
+for i in range(0,5):
+    matt = increments(.8,matt)
+    plt.matshow(matt)
+    print(np.nansum(matt))
 
 
-from scipy.linalg import get_blas_funcs
-gemm = get_blas_funcs("gemm", [x, y])
-gemm(3, y, x) 
+# In[100]:
 
 
-# In[118]:
+a = increments(.03,matt)
 
 
+# In[101]:
 
+
+plt.matshow(a)
+print(sum(sum(a)))
+
+
+# In[102]:
+
+
+b = increments(.03,a)
+
+
+# In[103]:
+
+
+plt.matshow(b)
+print(sum(sum(b)))
 
 
 # In[ ]:
