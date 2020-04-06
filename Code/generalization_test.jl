@@ -8,6 +8,8 @@ using LinearAlgebra
 #procedure is working, just need to plug
 #in the correct coefficients
 
+#Returns distribution of each of the given populations
+
 function config0(N,μ,σ)
       grid = zeros(Float32,N)
       for i in 1:N
