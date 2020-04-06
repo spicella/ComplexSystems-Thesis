@@ -53,6 +53,10 @@ Jon_off = Wf + k*Wx0*T1m
 Joff_on = g_off*(T1-Id)-Wf
 Joff_off = k*(T1m-Id)*Wx + Wh
 
+#Here before running main of the code
+#some garbage collector must be added
+
+
 #Example
 uon0 = config0(N,N/3,N/2)
 uoff0 = config0(N,N/5,N/2)
@@ -66,5 +70,7 @@ tspan = (0.0,100.0)
 prob = ODEProblem(func,[uon0 uoff0],tspan)
 sol = solve(prob,Vern7(),abstol=1e-8,reltol=3e-6)
 
-
+#Second variable plot
 Plots.plot(sol[length(sol)][:,2])
+
+#Then, a meshgrid must be created..
