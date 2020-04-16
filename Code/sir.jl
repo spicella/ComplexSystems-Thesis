@@ -25,7 +25,13 @@ mkdir(main_path*"/data")
 data_path = main_path*"/data"
 #print(Pkg.installed())
 
-N=50
+###############################
+#                             #
+#        Second Attempt       #
+#                             #
+###############################
+
+N=100
 
 #meshgrid
 function config0(N,μ,σ)
@@ -61,7 +67,7 @@ CSV.write(data_path*s,df_grid0,writeheader=false)
 grid0 = reshape(sparse(grid0), (N^2))
 
 #Start loop over R0
-r0_range = range(.75; stop = 5, step = .5)
+r0_range = range(.2; stop = 10, step = .25)
 len_r0_range = length(r0_range)
 for i in 1:len_r0_range
       print("\n-------------$i out of $len_r0_range-------------\n")
@@ -114,17 +120,14 @@ for i in 1:len_r0_range
       #Plots.heatmap(Matrix(Tm10*TWx1))
 
 
-      J =   (p[1]/p[2])*(Tm10*(TWx1*TWx2) - TWx1*TWx2) +    #reaction1: decrease of S
-            (p[1]/p[2])*(T01*(TWx1*TWx2) - TWx1*TWx2) +     #reaction2: increase of I
+      J =   (p[1]/N)*(Tm10*(TWx1*TWx2) - TWx1*TWx2) +    #reaction1: decrease of S
+            (p[1]/N)*(T01*(TWx1*TWx2) - TWx1*TWx2) +     #reaction2: increase of I
             p[2]*(T0m1*TWx2-TWx2)                           #reaction3: decrease of I
       Tm10,T01,TWx1 = nothing, nothing,nothing
       T0m1,T10,TWx2 = nothing, nothing,nothing
       #gc
 
       print("Preliminary finished, ready for computing\n")
-      print("R0 = ",p[1])
-      print("\n")
-
 
       tspan = (0.0,1.5)
       f(u,p,t) = J*u
@@ -145,3 +148,5 @@ for i in 1:len_r0_range
       print("\n")
 
 end
+
+print("\n\nAll done!")
