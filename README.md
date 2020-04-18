@@ -13,7 +13,7 @@
 - Bibliography:
   - Collection of useful paper and references to take inspiration from, both directly linked to the topic and additional material regarding possible outlines
 - Code:
-  - Julia version of the code is meant to replicate results from .py but in a way faster way.
+  - Mostly Julia for simulations/numerical, python for outputs
   - Folders with results data/outputs will automatically created/updated when running the codes.
 - Results: 
   - Will be presented within each folder for the correspondent simulation parameters.
