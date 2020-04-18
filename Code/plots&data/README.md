@@ -1,3 +1,7 @@
-Format for output
+**Format for output**
 
-N_S0_I0_plottype
+* Data:
+  N_S0_I0_plottype
+
+* Plots
+  N_S0_I0_plottype
