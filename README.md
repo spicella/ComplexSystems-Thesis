@@ -13,17 +13,13 @@
 - Bibliography:
   - Collection of useful paper and references to take inspiration from, both directly linked to the topic and additional material regarding possible outlines
 - Code:
-  - "bistable_switch" replicates Kryven et al. "Solution of the chemical master equation by radial basis functions approximation with interface tracking" for bistable switch case. Comments in the python codes are self explanatory. Note that no "for" loop was used to improve time performances.
   - Julia version of the code is meant to replicate results from .py but in a way faster way.
-  - Folders with results data/outputs will automatically created/updated when running the codes [PY].
+  - Folders with results data/outputs will automatically created/updated when running the codes.
 - Results: 
   - Will be presented within each folder for the correspondent simulation parameters.
 
-  
 #### Ideas:
-  - Relate evolution of the systems to propensities maps
-  - Implement edge detection and keep track of support displacements for given values of PDF ratio over total PDF
-  - Multithread! [In progress]
+  - Efficient multithread! [In progress]
   
 #### Issues:
-  - Not still able to reproduce splitting in bistability from paper..!
+
