@@ -31,7 +31,7 @@ data_path = main_path*"/data"
 #                             #
 ###############################
 
-N=100
+N=300
 
 #meshgrid
 function config0(N,μ,σ)
@@ -54,8 +54,8 @@ function config0(N,μ,σ)
       end
       return grid, plot_grid
 end
-mu = [N/3 N/1.5]
-sigma = [N/5 N/2]
+mu = [N*.9 N*1]
+sigma = [N/10 N/10]
 grid0 = config0(N,mu,sigma)[2]
 Plots.heatmap(grid0)
 
@@ -129,11 +129,11 @@ for i in 1:len_r0_range
 
       print("Preliminary finished, ready for computing\n")
 
-      tspan = (0.0,1.5)
+      tspan = (0.0,200.0)
       f(u,p,t) = J*u
       prob = ODEProblem(f,grid0,tspan)
-      #sol = solve(prob,Vern7(),abstol=1e-100,reltol=3e-14)
-      sol = solve(prob,Vern7(),abstol=1e-10,reltol=3e-8)
+      sol = solve(prob,Vern7(),abstol=1e-100,reltol=3e-14)
+      #sol = solve(prob,Vern7(),abstol=1e-10,reltol=3e-8)
       #sol = solve(prob,Vern7())
       sol.t
       configs = reshape(sol.u[1],N,N),reshape(sol.u[end],N,N)
